@@ -250,6 +250,10 @@ export class LLMPipeline {
     };
   }
 
+  generateSync(prompt: string | string[], generationConfig: GenerationConfig = {}) {
+    return this.pipeline.generate_sync(prompt, generationConfig);
+  }
+
   async generate(
     prompt: string | string[],
     generationConfig: GenerationConfig = {},

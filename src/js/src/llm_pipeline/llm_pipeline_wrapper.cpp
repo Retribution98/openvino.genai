@@ -101,6 +101,7 @@ Napi::Function LLMPipelineWrapper::get_class(Napi::Env env) {
                        "LLMPipeline",
                        {InstanceMethod("init", &LLMPipelineWrapper::init),
                         InstanceMethod("generate", &LLMPipelineWrapper::generate),
+                        InstanceMethod("generate_sync", &LLMPipelineWrapper::generate_sync),
                         InstanceMethod("getTokenizer", &LLMPipelineWrapper::get_tokenizer),
                         InstanceMethod("startChat", &LLMPipelineWrapper::start_chat),
                         InstanceMethod("finishChat", &LLMPipelineWrapper::finish_chat)});
@@ -117,6 +118,21 @@ Napi::Value LLMPipelineWrapper::init(const Napi::CallbackInfo& info) {
     asyncWorker->Queue();
 
     return info.Env().Undefined();
+}
+
+Napi::Value LLMPipelineWrapper::generate_sync(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    ov::genai::StringInputs prompt = js_to_cpp<ov::genai::StringInputs>(env, info[0]);
+    auto generation_config = js_to_cpp<ov::AnyMap>(info.Env(), info[1]);
+
+    ov::genai::GenerationConfig config;
+    config.update_generation_config(generation_config);
+    ov::genai::StreamerVariant streamer = std::monostate();
+
+    auto result = this->pipe->generate(prompt, config, streamer);
+
+    return create_decoded_results_object(env, result);
 }
 
 Napi::Value LLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {

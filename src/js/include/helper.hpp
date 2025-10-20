@@ -53,11 +53,17 @@ ov::genai::SchedulerConfig js_to_cpp<ov::genai::SchedulerConfig>(const Napi::Env
 template <>
 ov::genai::StructuredOutputConfig js_to_cpp<ov::genai::StructuredOutputConfig>(const Napi::Env& env, const Napi::Value& value);
 /** @brief  A template specialization for TargetType std::vector<ov::genai::StructuralTagItem> */
-template <>
-std::vector<ov::genai::StructuralTagItem> js_to_cpp<std::vector<ov::genai::StructuralTagItem>>(const Napi::Env& env, const Napi::Value& value);
+// template <>
+// std::vector<ov::genai::StructuralTagItem> js_to_cpp<std::vector<ov::genai::StructuralTagItem>>(const Napi::Env& env, const Napi::Value& value);
 /** @brief  A template specialization for TargetType ov::genai::StructuredOutputConfig::CompoundGrammar */
+// template <>
+// ov::genai::StructuredOutputConfig::CompoundGrammar js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(const Napi::Env& env, const Napi::Value& value);
+/** @brief  A template specialization for TargetType ov::genai::StructuredOutputConfig::StructuralTag */
 template <>
-ov::genai::StructuredOutputConfig::CompoundGrammar js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(const Napi::Env& env, const Napi::Value& value);
+ov::genai::StructuredOutputConfig::StructuralTag js_to_cpp<ov::genai::StructuredOutputConfig::StructuralTag>(const Napi::Env& env, const Napi::Value& value);
+/** @brief  A template specialization for TargetType std::vector<ov::genai::StructuredOutputConfig::Tag> */
+template <>
+std::vector<ov::genai::StructuredOutputConfig::Tag> js_to_cpp<std::vector<ov::genai::StructuredOutputConfig::Tag>>(const Napi::Env& env, const Napi::Value& value);
 /**
  * @brief  Template function to convert C++ data types into Javascript data types
  * @tparam TargetType Destinated Javascript data type.
@@ -97,6 +103,11 @@ Napi::Value cpp_to_js<std::vector<double>, Napi::Value>(const Napi::Env& env, co
 template <>
 Napi::Value cpp_to_js<std::vector<size_t>, Napi::Value>(const Napi::Env& env, const std::vector<size_t> value);
 
+template <>
+Napi::Value cpp_to_js<ov::genai::StructuredOutputConfig::StructuralTag, Napi::Value>(const Napi::Env& env,
+    const ov::genai::StructuredOutputConfig::StructuralTag value
+);
+
 /**
  * @brief  Template function to convert C++ map into Javascript Object. Map key must be std::string.
  * @tparam MapElementType C++ data type of map elements.
@@ -111,3 +122,4 @@ Napi::Object cpp_map_to_js_object(const Napi::Env& env, const std::map<std::stri
 }
 
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
+bool is_structured_output_config(const Napi::Env& env, const Napi::Value& value);

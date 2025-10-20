@@ -58,6 +58,7 @@ export interface TextEmbeddingPipelineWrapper {
 interface OpenVINOGenAIAddon {
   TextEmbeddingPipeline: TextEmbeddingPipelineWrapper;
   LLMPipeline: any;
+  StructuredOutputConfig: any;
 }
 
 // We need to use delayed import to get an updated Path if required

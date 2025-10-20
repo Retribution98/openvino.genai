@@ -18,28 +18,7 @@ export enum StopCriteria {
   NEVER,
 }
 
-export declare namespace StructuredOutputConfig {
-  export type CompoundGrammar = Regex | JSONSchema | EBNF | Concat | Union;
-  export type Regex = {
-    regex: string;
-  };
-  export type JSONSchema = {
-    json_schema: string;
-  };
-  export type EBNF = {
-    grammar?: string;
-  };
-  export type Concat = {
-    compoundType: "Concat";
-    left: CompoundGrammar;
-    right: CompoundGrammar;
-  };
-  export type Union = {
-    compoundType: "Union";
-    left: CompoundGrammar;
-    right: CompoundGrammar;
-  };
-}
+
 
 /** Structure to keep generation config parameters for structural tags in structured output generation.
  * It is used to store the configuration for a single structural tag item, which includes the begin string,
@@ -131,6 +110,38 @@ export class StructuredOutputConfig {
   ): StructuredOutputConfig.Union {
     return { compoundType: "Union", left, right };
   }
+}
+
+export declare namespace StructuredOutputConfig {
+  export type CompoundGrammar = Regex | JSONSchema | EBNF | Concat | Union;
+  export type Regex = {
+    regex: string;
+  };
+  export type JSONSchema = {
+    json_schema: string;
+  };
+  export type EBNF = {
+    grammar?: string;
+  };
+  export type ConstString = {
+    const_string: string;
+  };
+  // export type AnyText = {
+  //   any_text: boolean; // ???????????
+  // };
+  export type QwenXMLParametersFormat = {
+    qwen_xml_parameter_json_schema: string;
+  };
+  export type Concat = {
+    compoundType: "Concat";
+    left: CompoundGrammar;
+    right: CompoundGrammar;
+  };
+  export type Union = {
+    compoundType: "Union";
+    left: CompoundGrammar;
+    right: CompoundGrammar;
+  };
 }
 
 export type BeamSearchGenerationConfig = {

@@ -1,4 +1,6 @@
 #include "include/helper.hpp"
+#include "include/addon.hpp"
+#include "include/structured_output_config.hpp"
 
 namespace {
 constexpr const char* JS_SCHEDULER_CONFIG_KEY = "schedulerConfig";
@@ -105,15 +107,23 @@ ov::AnyMap js_to_cpp<ov::AnyMap>(const Napi::Env& env, const Napi::Value& value)
         } else if (key_name == POOLING_TYPE_KEY) {
             result_map[key_name] =
                 ov::genai::TextEmbeddingPipeline::PoolingType(value_by_key.ToNumber().Int32Value());
+        // } else if (is_structured_output_config(env, value_by_key)) {
+        //     std::cout << "Unwrapping StructuredOutputConfig for key: " << key_name << std::endl;
+        //     result_map[key_name] = *Napi::ObjectWrap<StructuredOutputConfigWrap>::Unwrap(value_by_key.ToObject())->get_value();
         } else if (key_name == STRUCTURED_OUTPUT_CONFIG_KEY) {
-            result_map[key_name] = ov::genai::StructuredOutputConfig(js_to_cpp<ov::AnyMap>(env, value_by_key));
-        } else if (key_name == STRUCTURAL_TAGS_CONFIG_KEY) {
-            result_map[key_name] = ov::genai::StructuralTagsConfig(js_to_cpp<ov::AnyMap>(env, value_by_key));
-        } else if (key_name == STRUCTURAL_TAGS_KEY) {
-            result_map[key_name] = js_to_cpp<std::vector<ov::genai::StructuralTagItem>>(env, value_by_key);
-        } else if (key_name == COMPOUND_GRAMMAR_KEY) {
-            result_map[key_name] = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, value_by_key);
+            std::cout << "Unwrapping StructuredOutputConfig for key: " << key_name << std::endl;
+            auto c = *Napi::ObjectWrap<StructuredOutputConfigWrap>::Unwrap(value_by_key.ToObject())->get_value();
+            result_map[key_name] = c;
+            std::cout << "!!! " << c.json_schema.value_or("NONE") << std::endl;
+            // result_map[key_name] = ov::genai::StructuredOutputConfig(js_to_cpp<ov::AnyMap>(env, value_by_key));
+        // } else if (key_name == STRUCTURAL_TAGS_CONFIG_KEY) {
+        //     result_map[key_name] = ov::genai::StructuralTagsConfig(js_to_cpp<ov::AnyMap>(env, value_by_key));
+        // } else if (key_name == STRUCTURAL_TAGS_KEY) {
+        //     result_map[key_name] = js_to_cpp<std::vector<ov::genai::StructuralTagItem>>(env, value_by_key);
+        // } else if (key_name == COMPOUND_GRAMMAR_KEY) {
+        //     result_map[key_name] = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, value_by_key);
         } else {
+            std::cout << "Unmatched for key: " << key_name << std::endl;
             result_map[key_name] = js_to_cpp<ov::Any>(env, value_by_key);
         }
     }
@@ -172,41 +182,41 @@ std::vector<ov::genai::StructuralTagItem> js_to_cpp<std::vector<ov::genai::Struc
     }
 }
 
-template <>
-ov::genai::StructuredOutputConfig::CompoundGrammar js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(const Napi::Env& env, const Napi::Value& value) {
-    OPENVINO_ASSERT(value.IsObject(), "CompoundGrammar must be a JS object");
-    auto obj = value.As<Napi::Object>();
+// template <>
+// ov::genai::StructuredOutputConfig::CompoundGrammar js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(const Napi::Env& env, const Napi::Value& value) {
+//     OPENVINO_ASSERT(value.IsObject(), "CompoundGrammar must be a JS object");
+//     auto obj = value.As<Napi::Object>();
 
-    if (obj.Has("json_schema")) {
-        return ov::genai::StructuredOutputConfig::JSONSchema(
-            js_to_cpp<std::string>(env, obj.Get("json_schema"))
-        );
-    }
-    if (obj.Has("regex")) {
-        return ov::genai::StructuredOutputConfig::Regex(
-            js_to_cpp<std::string>(env, obj.Get("regex"))
-        );
-    }
-    if (obj.Has("grammar")) {
-        return ov::genai::StructuredOutputConfig::EBNF(
-            js_to_cpp<std::string>(env, obj.Get("grammar"))
-        );
-    }
-    if (obj.Has("compoundType") && obj.Has("left") && obj.Has("right")) {
-        auto left = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, obj.Get("left"));
-        auto right = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, obj.Get("right"));
-        auto compound_type = obj.Get("compoundType").ToString().Utf8Value();
-        if (compound_type == "Concat") {
-            return std::make_shared<ov::genai::StructuredOutputConfig::Concat>(left, right);
-        } else if (compound_type == "Union") {
-            return std::make_shared<ov::genai::StructuredOutputConfig::Union>(left, right);
-        } else {
-            OPENVINO_THROW("compoundType must be either 'Concat' or 'Union'");
-        }
+//     if (obj.Has("json_schema")) {
+//         return ov::genai::StructuredOutputConfig::JSONSchema(
+//             js_to_cpp<std::string>(env, obj.Get("json_schema"))
+//         );
+//     }
+//     if (obj.Has("regex")) {
+//         return ov::genai::StructuredOutputConfig::Regex(
+//             js_to_cpp<std::string>(env, obj.Get("regex"))
+//         );
+//     }
+//     if (obj.Has("grammar")) {
+//         return ov::genai::StructuredOutputConfig::EBNF(
+//             js_to_cpp<std::string>(env, obj.Get("grammar"))
+//         );
+//     }
+//     if (obj.Has("compoundType") && obj.Has("left") && obj.Has("right")) {
+//         auto left = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, obj.Get("left"));
+//         auto right = js_to_cpp<ov::genai::StructuredOutputConfig::CompoundGrammar>(env, obj.Get("right"));
+//         auto compound_type = obj.Get("compoundType").ToString().Utf8Value();
+//         if (compound_type == "Concat") {
+//             return std::make_shared<ov::genai::StructuredOutputConfig::Concat>(left, right);
+//         } else if (compound_type == "Union") {
+//             return std::make_shared<ov::genai::StructuredOutputConfig::Union>(left, right);
+//         } else {
+//             OPENVINO_THROW("compoundType must be either 'Concat' or 'Union'");
+//         }
         
-    }
-    OPENVINO_THROW("CompoundGrammar must be either JSONSchema, Regex, EBNF, Concat or Union");
-}
+//     }
+//     OPENVINO_THROW("CompoundGrammar must be either JSONSchema, Regex, EBNF, Concat or Union");
+// }
 
 template <>
 ov::genai::StringInputs js_to_cpp<ov::genai::StringInputs>(const Napi::Env& env, const Napi::Value& value) {
@@ -278,6 +288,63 @@ ov::genai::SchedulerConfig js_to_cpp<ov::genai::SchedulerConfig>(const Napi::Env
     }
 
     return config;
+}
+
+/** @brief  A template specialization for TargetType ov::genai::StructuredOutputConfig::StructuralTag */
+template <>
+ov::genai::StructuredOutputConfig::StructuralTag js_to_cpp<ov::genai::StructuredOutputConfig::StructuralTag>(const Napi::Env& env, const Napi::Value& value) {
+    if (value.IsString()) {
+        return js_to_cpp<std::string>(env, value);
+    }
+    
+    OPENVINO_ASSERT(value.IsObject(), "StructuralTag must be a JS object or string");
+    auto object = value.As<Napi::Object>();
+
+    if (object.InstanceOf(StructuredOutputConfigWrap::RegexWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::RegexWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::JSONSchemaWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::JSONSchemaWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::EBNFWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::EBNFWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::ConstStringWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::ConstStringWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::AnyTextWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::AnyTextWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::QwenXMLParametersFormatWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::QwenXMLParametersFormatWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::ConcatWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::ConcatWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::UnionWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::UnionWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::TagWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::TagWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::TriggeredTagsWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::TriggeredTagsWrap>::Unwrap(object)->get_value();
+    if (object.InstanceOf(StructuredOutputConfigWrap::TagsWithSeparatorWrap::ctor.Value()))
+        return Napi::ObjectWrap<StructuredOutputConfigWrap::TagsWithSeparatorWrap>::Unwrap(object)->get_value();
+
+    OPENVINO_THROW("Invalid value for StructuralTag.");
+}
+
+/** @brief  A template specialization for TargetType std::vector<ov::genai::StructuredOutputConfig::Tag> */
+template <>
+std::vector<ov::genai::StructuredOutputConfig::Tag> js_to_cpp<std::vector<ov::genai::StructuredOutputConfig::Tag>>(const Napi::Env& env, const Napi::Value& value) {
+    OPENVINO_ASSERT(value.IsArray(), "Tags must be a array of StructuredOutputConfig.Tag");
+    auto array = value.As<Napi::Array>();
+    std::vector<ov::genai::StructuredOutputConfig::Tag> tags;
+    tags.reserve(array.Length());
+
+    for (size_t i = 0; i < array.Length(); ++i) {
+        auto item = array.Get(i);
+        OPENVINO_ASSERT(item.IsObject(), "Each Tag must be a JS object");
+        auto object = item.As<Napi::Object>();
+        if (object.InstanceOf(StructuredOutputConfigWrap::TagWrap::ctor.Value())) {
+            tags.push_back(*Napi::ObjectWrap<StructuredOutputConfigWrap::TagWrap>::Unwrap(object)->get_value());
+        } else {
+            OPENVINO_THROW("Invalid value for Tag.");
+        }
+    }
+    return tags;
 }
 
 template <>
@@ -361,6 +428,63 @@ Napi::Value cpp_to_js<std::vector<size_t>, Napi::Value>(const Napi::Env& env, co
     return js_array;
 }
 
+template <>
+Napi::Value cpp_to_js<ov::genai::StructuredOutputConfig::StructuralTag, Napi::Value>(const Napi::Env& env,
+    const ov::genai::StructuredOutputConfig::StructuralTag value
+) {
+    return std::visit(
+        overloaded{
+            [env](const std::string& str) -> Napi::Value {
+                return Napi::String::New(env, str);
+            },
+            [env](const ov::genai::StructuredOutputConfig::Regex& regex) -> Napi::Value {
+                return StructuredOutputConfigWrap::RegexWrap::wrap(env, regex);
+            },
+            [env](const ov::genai::StructuredOutputConfig::JSONSchema& json_schema) -> Napi::Value {
+                return StructuredOutputConfigWrap::JSONSchemaWrap::wrap(env, json_schema);
+            },
+            [env](const ov::genai::StructuredOutputConfig::EBNF& ebnf) -> Napi::Value {
+                return StructuredOutputConfigWrap::EBNFWrap::wrap(env, ebnf);
+            },
+            [env](const ov::genai::StructuredOutputConfig::ConstString& const_string) -> Napi::Value {
+                return StructuredOutputConfigWrap::ConstStringWrap::wrap(env, const_string);
+            },
+            [env](const ov::genai::StructuredOutputConfig::AnyText& any_text) -> Napi::Value {
+                return StructuredOutputConfigWrap::AnyTextWrap::wrap(env, any_text);
+            },
+            [env](const ov::genai::StructuredOutputConfig::QwenXMLParametersFormat& qwen_xml) -> Napi::Value {
+                return StructuredOutputConfigWrap::QwenXMLParametersFormatWrap::wrap(env, qwen_xml);
+            },
+            [env](const std::shared_ptr<ov::genai::StructuredOutputConfig::Concat>& concat) -> Napi::Value {
+                return StructuredOutputConfigWrap::ConcatWrap::wrap(env, concat);
+            },
+            [env](const std::shared_ptr<ov::genai::StructuredOutputConfig::Union>& union_value) -> Napi::Value {
+                return StructuredOutputConfigWrap::UnionWrap::wrap(env, union_value);
+            },
+            [env](const std::shared_ptr<ov::genai::StructuredOutputConfig::Tag>& tag) -> Napi::Value {
+                return StructuredOutputConfigWrap::TagWrap::wrap(env, tag);
+            },
+            [env](const std::shared_ptr<ov::genai::StructuredOutputConfig::TriggeredTags>& triggered_tags) -> Napi::Value {
+                return StructuredOutputConfigWrap::TriggeredTagsWrap::wrap(env, triggered_tags);
+            },
+            [env](const std::shared_ptr<ov::genai::StructuredOutputConfig::TagsWithSeparator>& tags_with_separator) -> Napi::Value {
+                return StructuredOutputConfigWrap::TagsWithSeparatorWrap::wrap(env, tags_with_separator);
+            }
+        },
+        value);
+}
+
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
     return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
+}
+
+bool is_structured_output_config(const Napi::Env& env, const Napi::Value& value) {
+    if (!value.IsObject()) {
+        std::cout << value.ToString() << " is not an Object" << std::endl;
+        return false;
+    }
+    std::cout << "is Object" << std::endl;
+    std::cout << value.ToObject().ToString() << " is Object" << std::endl;
+    const auto& prototype =  env.GetInstanceData<AddonData>()->structured_output_config;
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }

@@ -12,6 +12,7 @@ public:
 
     Napi::Value init(const Napi::CallbackInfo& info);
     Napi::Value generate(const Napi::CallbackInfo& info);
+    Napi::Value generate_sync(const Napi::CallbackInfo& info);
     Napi::Value start_chat(const Napi::CallbackInfo& info);
     Napi::Value finish_chat(const Napi::CallbackInfo& info);
     Napi::Value get_tokenizer(const Napi::CallbackInfo& info);

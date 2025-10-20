@@ -11,6 +11,8 @@ struct AddonData {
     Napi::FunctionReference core;
     Napi::FunctionReference tokenizer;
     Napi::FunctionReference perf_metrics;
+    Napi::FunctionReference structured_output_config;
+    Napi::FunctionReference concat;
 };
 
 void init_class(Napi::Env env,
