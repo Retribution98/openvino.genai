@@ -119,13 +119,25 @@ std::vector<std::string> js_to_cpp<std::vector<std::string>>(const Napi::Env& en
 }
 
 template <>
-ov::genai::StringInputs js_to_cpp<ov::genai::StringInputs>(const Napi::Env& env, const Napi::Value& value) {
-    if (value.IsString()) {
-        return value.As<Napi::String>().Utf8Value();
-    } else if (value.IsArray()) {
-        return js_to_cpp<std::vector<std::string>>(env, value);
-    } else {
-        OPENVINO_THROW("Passed argument must be a string or an array of strings");
+GenerateInputs js_to_cpp<GenerateInputs>(const Napi::Env& env, const Napi::Value& value) {
+    try {
+        if (value.IsString()) {
+            return value.As<Napi::String>().Utf8Value();
+        } else if (value.IsArray()) {
+            auto array = value.As<Napi::Array>();
+            if (array.Length() == 0 || !array.Get(uint32_t{0}).IsString()) {
+                if (array.Get(uint32_t{0}).IsString()) {
+                    return js_to_cpp<std::vector<std::string>>(env, value);
+                } else {
+                    return js_to_cpp<ov::genai::ChatHistory>(env, value);
+                }
+            }
+            return js_to_cpp<std::vector<std::string>>(env, value);
+        } else {
+            OPENVINO_THROW("Passed argument must be a string, ChatHistory or an array of strings");
+        }
+    } catch (const ov::Exception& e) {
+        OPENVINO_THROW("Incorrect value for generate inputs. ", e.what());
     }
 }
 
