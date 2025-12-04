@@ -61,6 +61,7 @@ export interface TextEmbeddingPipelineWrapper {
 interface OpenVINOGenAIAddon {
   TextEmbeddingPipeline: TextEmbeddingPipelineWrapper;
   LLMPipeline: any;
+  VLMPipeline: any;
   ChatHistory: IChatHistory;
   Tokenizer: ITokenizer;
   setOpenvinoAddon: (ovAddon: any) => void;
@@ -84,6 +85,6 @@ function getGenAIAddon(): OpenVINOGenAIAddon {
 const addon = getGenAIAddon();
 addon.setOpenvinoAddon(ovAddon);
 
-export const { TextEmbeddingPipeline, LLMPipeline, ChatHistory, Tokenizer } = addon;
+export const { TextEmbeddingPipeline, LLMPipeline, VLMPipeline, ChatHistory, Tokenizer } = addon;
 export type ChatHistory = IChatHistory;
 export type Tokenizer = ITokenizer;
