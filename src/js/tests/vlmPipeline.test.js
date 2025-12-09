@@ -26,7 +26,7 @@ describe("VLMPipeline", () => {
     pipeline.setGenerationConfig({ max_new_tokens: 10 });
   });
 
-  it.skip("should generate text without images", async () => {
+  it("should generate text without images", async () => {
     if (!pipeline) return;
 
     const result = await pipeline.generate("What is 2+2?");
@@ -34,7 +34,7 @@ describe("VLMPipeline", () => {
     assert.ok(result.texts.length > 0, "Should generate some output");
   });
 
-  it.skip("should generate text with images", async () => {
+  it("should generate text with images", async () => {
     if (!pipeline) return;
 
     const testImage1 = createTestImageTensor();
@@ -90,9 +90,7 @@ describe("VLMPipeline", () => {
     });
 
     for await (const chunk of stream) {
-      if (!chunk.done) {
-        chunks.push(chunk.value);
-      }
+      chunks.push(chunk);
     }
 
     assert.ok(chunks.length > 0, "Should receive streaming chunks");
@@ -133,19 +131,6 @@ describe("VLMPipeline", () => {
     if (!pipeline) return;
     const tokenizer = pipeline.getTokenizer();
     assert.ok(tokenizer instanceof Tokenizer, "Should return tokenizer");
-  });
-
-  it("should get and set generation config", () => {
-    if (!pipeline) return;
-
-    const config = pipeline.getGenerationConfig();
-    assert.ok(config, "Should return generation config");
-    assert.ok(typeof config.max_new_tokens === "number", "Should have max_new_tokens");
-
-    pipeline.setGenerationConfig({ max_new_tokens: 50, temperature: 1 });
-    const newConfig = pipeline.getGenerationConfig();
-    assert.strictEqual(newConfig.max_new_tokens, 50, "max_new_tokens should be updated");
-    assert.strictEqual(newConfig.temperature, 1, "temperature should be updated");
   });
 
   it("should start and finish chat", async () => {

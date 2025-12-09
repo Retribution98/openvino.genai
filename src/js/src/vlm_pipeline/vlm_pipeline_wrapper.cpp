@@ -6,7 +6,7 @@
 #include <future>
 #include "include/addon.hpp"
 #include "include/helper.hpp"
-#include "include/vlm_pipeline/vlm_perf_metrics.hpp"
+#include "include/vlm_pipeline/perf_metrics.hpp"
 #include "include/vlm_pipeline/start_chat_worker.hpp"
 #include "include/vlm_pipeline/finish_chat_worker.hpp"
 #include "include/vlm_pipeline/init_worker.hpp"
@@ -26,15 +26,6 @@ struct VLMTsfnContext {
     std::shared_ptr<ov::AnyMap> generation_config = nullptr;
     std::shared_ptr<ov::AnyMap> options = nullptr;
 };
-
-Napi::Object create_vlm_decoded_results_object(Napi::Env env, const ov::genai::VLMDecodedResults& result) {
-    Napi::Object obj = Napi::Object::New(env);
-    obj.Set("texts", cpp_to_js<std::vector<std::string>, Napi::Value>(env, result.texts));
-    obj.Set("scores", cpp_to_js<std::vector<float>, Napi::Value>(env, result.scores));
-    obj.Set("perfMetrics", VLMPerfMetricsWrapper::wrap(env, result.perf_metrics));
-    obj.Set("subword", Napi::String::New(env, result));
-    return obj;
-}
 
 void vlmPerformInferenceThread(VLMTsfnContext* context) {
     try {
@@ -83,7 +74,7 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
         result = context->pipe->generate(context->prompt, context->images, context->videos, config, streamer);
 
         napi_status status = context->tsfn.BlockingCall([result](Napi::Env env, Napi::Function jsCallback) {
-            jsCallback.Call({Napi::Boolean::New(env, true), create_vlm_decoded_results_object(env, result)});
+            jsCallback.Call({Napi::Boolean::New(env, true), to_vlm_decoded_result(env, result)});
         });
 
         if (status != napi_ok) {
@@ -110,7 +101,6 @@ Napi::Function VLMPipelineWrapper::get_class(Napi::Env env) {
                         InstanceMethod("startChat", &VLMPipelineWrapper::start_chat),
                         InstanceMethod("finishChat", &VLMPipelineWrapper::finish_chat),
                         InstanceMethod("setChatTemplate", &VLMPipelineWrapper::set_chat_template),
-                        InstanceMethod("getGenerationConfig", &VLMPipelineWrapper::get_generation_config),
                         InstanceMethod("setGenerationConfig", &VLMPipelineWrapper::set_generation_config)});
 }
 
@@ -127,42 +117,19 @@ Napi::Value VLMPipelineWrapper::init(const Napi::CallbackInfo& info) {
     return info.Env().Undefined();
 }
 
-std::vector<ov::Tensor> js_array_to_tensors(const Napi::Env& env, const Napi::Value& value) {
-    std::vector<ov::Tensor> tensors;
-    if (value.IsUndefined() || value.IsNull()) {
-        return tensors;
-    }
-    
-    if (value.IsArray()) {
-        auto array = value.As<Napi::Array>();
-        size_t length = array.Length();
-        tensors.reserve(length);
-        for (uint32_t i = 0; i < length; ++i) {
-            tensors.push_back(js_to_cpp<ov::Tensor>(env, array[i]));
-        }
-    } else if (value.IsObject()) {
-        // Single tensor
-        tensors.push_back(js_to_cpp<ov::Tensor>(env, value));
-    }
-    
-    return tensors;
-}
-
 Napi::Value VLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {
+    VALIDATE_ARGS_COUNT(info, 6, "generate()");
     Napi::Env env = info.Env();
     VLMTsfnContext* context = nullptr;
 
     try {
         // Arguments: prompt, images, videos, callback, generationConfig, options
         auto prompt = js_to_cpp<std::string>(env, info[0]);
-        auto images = js_array_to_tensors(env, info[1]);
-        auto videos = js_array_to_tensors(env, info[2]);
-        
+        auto images = js_to_cpp<std::vector<ov::Tensor>>(env, info[1]);
+        auto videos = js_to_cpp<std::vector<ov::Tensor>>(env, info[2]);
+        auto async_callback = info[3].As<Napi::Function>();
         auto generation_config = js_to_cpp<ov::AnyMap>(info.Env(), info[4]);
-        ov::AnyMap options;
-        if (info.Length() > 5) {
-            options = js_to_cpp<ov::AnyMap>(info.Env(), info[5]);
-        }
+        ov::AnyMap options = js_to_cpp<ov::AnyMap>(info.Env(), info[5]);
 
         context = new VLMTsfnContext(prompt);
         context->images = std::move(images);
@@ -171,11 +138,10 @@ Napi::Value VLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {
         context->generation_config = std::make_shared<ov::AnyMap>(generation_config);
         context->options = std::make_shared<ov::AnyMap>(options);
         
-        // Create a ThreadSafeFunction
         context->tsfn = Napi::ThreadSafeFunction::New(
             env,
-            info[3].As<Napi::Function>(),   // JavaScript function called asynchronously
-            "VLMTSFN",                      // Name
+            async_callback,                 // JavaScript function called asynchronously
+            "VLM_TSFN",                     // Name
             0,                              // Unlimited queue
             1,                              // Only one thread will use this initially
             [context](Napi::Env) {          // Finalizer used to clean threads up
@@ -186,15 +152,9 @@ Napi::Value VLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {
         context->native_thread = std::thread(vlmPerformInferenceThread, context);
 
         return Napi::Boolean::New(env, false);
-    } catch(Napi::TypeError& type_err) {
-        throw type_err;
-    } catch(std::exception& err) {
-        std::cout << "Catch in the thread: '" << err.what() << "'" << std::endl;
-        if (context != nullptr) {
-            context->tsfn.Release();
-        }
-
-        throw Napi::Error::New(env, err.what());
+    }
+    catch (const std::exception& ex) {
+        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
     }
 
     return Napi::Boolean::New(env, true);
@@ -234,39 +194,31 @@ Napi::Value VLMPipelineWrapper::get_tokenizer(const Napi::CallbackInfo& info) {
 
 Napi::Value VLMPipelineWrapper::set_chat_template(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    OPENVINO_ASSERT(info.Length() == 1 && info[0].IsString(), "setChatTemplate expects 1 string argument");
+    VALIDATE_ARGS_COUNT(info, 1, "setChatTemplate()");
     
-    auto chat_template = js_to_cpp<std::string>(env, info[0]);
-    this->pipe->set_chat_template(chat_template);
-    
+    try {
+        auto chat_template = js_to_cpp<std::string>(env, info[0]);
+        this->pipe->set_chat_template(chat_template);
+    } 
+    catch (const std::exception& ex) {
+        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
+    }
     return env.Undefined();
 }
 
-Napi::Value VLMPipelineWrapper::get_generation_config(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    auto config = this->pipe->get_generation_config();
-    
-    Napi::Object obj = Napi::Object::New(env);
-    obj.Set("max_new_tokens", Napi::Number::New(env, config.max_new_tokens));
-    obj.Set("max_length", Napi::Number::New(env, config.max_length));
-    obj.Set("temperature", Napi::Number::New(env, config.temperature));
-    obj.Set("top_p", Napi::Number::New(env, config.top_p));
-    obj.Set("top_k", Napi::Number::New(env, config.top_k));
-    obj.Set("do_sample", Napi::Boolean::New(env, config.do_sample));
-    obj.Set("repetition_penalty", Napi::Number::New(env, config.repetition_penalty));
-    obj.Set("num_return_sequences", Napi::Number::New(env, config.num_return_sequences));
-    
-    return obj;
-}
-
 Napi::Value VLMPipelineWrapper::set_generation_config(const Napi::CallbackInfo& info) {
+    VALIDATE_ARGS_COUNT(info, 1, "setGenerationConfig()");
     Napi::Env env = info.Env();
-    OPENVINO_ASSERT(info.Length() == 1 && info[0].IsObject(), "setGenerationConfig expects 1 object argument");
     
-    auto config_map = js_to_cpp<ov::AnyMap>(env, info[0]);
-    ov::genai::GenerationConfig config;
-    config.update_generation_config(config_map);
-    this->pipe->set_generation_config(config);
+    try {
+        auto config_map = js_to_cpp<ov::AnyMap>(env, info[0]);
+        ov::genai::GenerationConfig config;
+        config.update_generation_config(config_map);
+        this->pipe->set_generation_config(config);
+    } 
+    catch (const std::exception& ex) {
+        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
+    }
     
     return env.Undefined();
 }

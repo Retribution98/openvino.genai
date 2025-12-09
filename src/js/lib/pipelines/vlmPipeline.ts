@@ -211,7 +211,7 @@ export class VLMPipeline {
       return streamingStatus;
     }
 
-    this.pipeline.generate(prompt, images, videos, chunkOutput, generationConfig);
+    this.pipeline.generate(prompt, images, videos, chunkOutput, generationConfig, {});
 
     return {
       async next() {

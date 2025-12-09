@@ -6,7 +6,7 @@
 #include "include/perf_metrics.hpp"
 #include "include/llm_pipeline/llm_pipeline_wrapper.hpp"
 #include "include/vlm_pipeline/vlm_pipeline_wrapper.hpp"
-#include "include/vlm_pipeline/vlm_perf_metrics.hpp"
+#include "include/vlm_pipeline/perf_metrics.hpp"
 #include "include/text_embedding_pipeline/pipeline_wrapper.hpp"
 #include "include/tokenizer.hpp"
 #include "include/chat_history.hpp"
