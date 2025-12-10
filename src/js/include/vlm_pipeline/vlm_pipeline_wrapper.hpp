@@ -22,13 +22,6 @@ public:
     Napi::Value set_generation_config(const Napi::CallbackInfo& info);
 
 private:
-    bool is_loaded = false;
-    bool is_initialized = false;
-    bool is_running = false;
-
-    std::string model_path;
-    std::string device;
-
     std::shared_ptr<ov::genai::VLMPipeline> pipe = nullptr;
-    std::function<bool(std::string)> streamer;
+    std::shared_ptr<bool> is_initializing = std::make_shared<bool>(false);
 };

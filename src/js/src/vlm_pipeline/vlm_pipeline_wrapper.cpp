@@ -141,31 +141,37 @@ Napi::Function VLMPipelineWrapper::get_class(Napi::Env env) {
 }
 
 Napi::Value VLMPipelineWrapper::init(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    const std::string model_path = info[0].ToString();
-    const std::string device = info[1].ToString();
-    const auto& properties = js_to_cpp<ov::AnyMap>(info.Env(), info[2]);
-    Napi::Function callback = info[3].As<Napi::Function>();
+    try {
+        Napi::Env env = info.Env();
+        OPENVINO_ASSERT(!this->pipe, "Pipeline is already initialized");
+        OPENVINO_ASSERT(!this->is_initializing, "Pipeline is already initializing");
+        VALIDATE_ARGS_COUNT(info, 4, "init()");
+        const std::string model_path = js_to_cpp<std::string>(env, info[0]);
+        const std::string device = js_to_cpp<std::string>(env, info[1]);
+        const auto& properties = js_to_cpp<ov::AnyMap>(env, info[2]);
+        OPENVINO_ASSERT(info[3].IsFunction(), "init callback is not a function");
+        Napi::Function callback = info[3].As<Napi::Function>();
 
-    VLMInitWorker* asyncWorker = new VLMInitWorker(callback, this->pipe, model_path, device, properties);
-    asyncWorker->Queue();
-
-    return info.Env().Undefined();
+        VLMInitWorker* asyncWorker = new VLMInitWorker(callback, this->pipe, this->is_initializing, model_path, device, properties);
+        asyncWorker->Queue();
+    } catch (const std::exception& ex) {
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
+    }
 }
 
 Napi::Value VLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {
-    VALIDATE_ARGS_COUNT(info, 6, "generate()");
-    Napi::Env env = info.Env();
-    VLMTsfnContext* context = nullptr;
-
     try {
+        Napi::Env env = info.Env();
+        VALIDATE_ARGS_COUNT(info, 6, "generate()");
+        VLMTsfnContext* context = nullptr;
+
         // Arguments: prompt, images, videos, callback, generationConfig, options
         auto prompt = js_to_cpp<std::string>(env, info[0]);
         auto images = js_to_cpp<std::vector<ov::Tensor>>(env, info[1]);
         auto videos = js_to_cpp<std::vector<ov::Tensor>>(env, info[2]);
         auto async_callback = info[3].As<Napi::Function>();
-        auto generation_config = js_to_cpp<ov::AnyMap>(info.Env(), info[4]);
-        ov::AnyMap options = js_to_cpp<ov::AnyMap>(info.Env(), info[5]);
+        auto generation_config = js_to_cpp<ov::AnyMap>(env, info[4]);
+        ov::AnyMap options = js_to_cpp<ov::AnyMap>(env, info[5]);
 
         context = new VLMTsfnContext(prompt);
         context->images = std::move(images);
@@ -186,75 +192,71 @@ Napi::Value VLMPipelineWrapper::generate(const Napi::CallbackInfo& info) {
             }
         );
         context->native_thread = std::thread(vlmPerformInferenceThread, context);
-
-        return Napi::Boolean::New(env, false);
     }
     catch (const std::exception& ex) {
-        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
     }
-
-    return Napi::Boolean::New(env, true);
 }
 
 Napi::Value VLMPipelineWrapper::start_chat(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    OPENVINO_ASSERT(
-        info.Length() == 2 && info[0].IsString() && info[1].IsFunction(),
-        "startChat expects 2 arguments: system_message and callback function"
-    );
-    auto system_message = js_to_cpp<std::string>(info.Env(), info[0]);
-    auto callback = info[1].As<Napi::Function>();
+    try {
+        VALIDATE_ARGS_COUNT(info, 2, "startChat()");
+        auto system_message = js_to_cpp<std::string>(info.Env(), info[0]);
+        OPENVINO_ASSERT(info[1].IsFunction(), "startChat callback is not a function");
+        auto callback = info[1].As<Napi::Function>();
 
-    VLMStartChatWorker* asyncWorker = new VLMStartChatWorker(callback, this->pipe, system_message);
-    asyncWorker->Queue();
-
-    return info.Env().Undefined();
+        VLMStartChatWorker* asyncWorker = new VLMStartChatWorker(callback, this->pipe, system_message);
+        asyncWorker->Queue();
+    } 
+    catch (const std::exception& ex) {
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
+    }
 }
 
 Napi::Value VLMPipelineWrapper::finish_chat(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
+    try {
+        VALIDATE_ARGS_COUNT(info, 1, "finishChat()");
+        OPENVINO_ASSERT(info[0].IsFunction(), "finishChat callback is not a function");
+        Napi::Function callback = info[0].As<Napi::Function>();
 
-    Napi::Function callback = info[0].As<Napi::Function>();
-
-    VLMFinishChatWorker* asyncWorker = new VLMFinishChatWorker(callback, this->pipe);
-    asyncWorker->Queue();
-
-    return info.Env().Undefined();
+        VLMFinishChatWorker* asyncWorker = new VLMFinishChatWorker(callback, this->pipe);
+        asyncWorker->Queue();
+    } 
+    catch (const std::exception& ex) {
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
+    }
 }
 
 Napi::Value VLMPipelineWrapper::get_tokenizer(const Napi::CallbackInfo& info) {
-    auto tokenizer = this->pipe->get_tokenizer();
-
-    return TokenizerWrapper::wrap(info.Env(), tokenizer);
+    try {
+        auto tokenizer = this->pipe->get_tokenizer();
+        return TokenizerWrapper::wrap(info.Env(), tokenizer);
+    } 
+    catch (const std::exception& ex) {
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
+    }
 }
 
 Napi::Value VLMPipelineWrapper::set_chat_template(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    VALIDATE_ARGS_COUNT(info, 1, "setChatTemplate()");
-    
     try {
-        auto chat_template = js_to_cpp<std::string>(env, info[0]);
+        VALIDATE_ARGS_COUNT(info, 1, "setChatTemplate()");
+        auto chat_template = js_to_cpp<std::string>(info.Env(), info[0]);
         this->pipe->set_chat_template(chat_template);
     } 
     catch (const std::exception& ex) {
-        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
     }
-    return env.Undefined();
 }
 
 Napi::Value VLMPipelineWrapper::set_generation_config(const Napi::CallbackInfo& info) {
-    VALIDATE_ARGS_COUNT(info, 1, "setGenerationConfig()");
-    Napi::Env env = info.Env();
-    
     try {
-        auto config_map = js_to_cpp<ov::AnyMap>(env, info[0]);
+        VALIDATE_ARGS_COUNT(info, 1, "setGenerationConfig()");
+        auto config_map = js_to_cpp<ov::AnyMap>(info.Env(), info[0]);
         ov::genai::GenerationConfig config;
         config.update_generation_config(config_map);
         this->pipe->set_generation_config(config);
     } 
     catch (const std::exception& ex) {
-        Napi::Error::New(env, ex.what()).ThrowAsJavaScriptException();
+        Napi::Error::New(info.Env(), ex.what()).ThrowAsJavaScriptException();
     }
-    
-    return env.Undefined();
 }

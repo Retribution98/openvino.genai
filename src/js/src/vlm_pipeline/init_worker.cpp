@@ -6,15 +6,23 @@
 VLMInitWorker::VLMInitWorker(
     Function& callback,
     std::shared_ptr<ov::genai::VLMPipeline>& pipe,
+    std::shared_ptr<bool> is_initializing,
     const std::string model_path,
     const std::string device,
     const ov::AnyMap properties
-) : AsyncWorker(callback), pipe(pipe), model_path(model_path), device(device), properties(properties) {};
+) : AsyncWorker(callback), pipe(pipe), is_initializing(is_initializing), model_path(model_path), device(device), properties(properties) {};
 
 void VLMInitWorker::Execute() {
+    *this->is_initializing = true;
     this->pipe = std::make_shared<ov::genai::VLMPipeline>(this->model_path, this->device, this->properties);
 };
 
 void VLMInitWorker::OnOK() {
     Callback().Call({ Env().Null() });
+    *this->is_initializing = false;
+};
+
+void VLMInitWorker::OnError(const Error& e) {
+    Callback().Call({ Napi::Error::New(Env(), e.Message()).Value() });
+    *this->is_initializing = false;
 };
