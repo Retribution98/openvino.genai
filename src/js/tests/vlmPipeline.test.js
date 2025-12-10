@@ -78,6 +78,26 @@ describe("VLMPipeline", () => {
     assert.strictEqual(result.texts.length, 1);
   });
 
+  it("throw error on invalid callback", async () => {
+    if (!pipeline) return;
+
+    await assert.rejects(
+      pipeline.generate("What is 2+2?", [], [], {}, () => {
+        throw new Error("Test error");
+      }),
+      /Test error/,
+    );
+  });
+
+  it("throw error with invalid generationConfig", async () => {
+    if (!pipeline) return;
+
+    await assert.rejects(
+      pipeline.generate("What is 2+2?", [], [], { max_new_tokens: "five" }),
+      /vlmPerformInferenceThread error/,
+    );
+  });
+
   it("should support streaming generation", async () => {
     if (!pipeline) return;
 

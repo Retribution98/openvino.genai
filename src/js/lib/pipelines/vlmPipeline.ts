@@ -196,10 +196,17 @@ export class VLMPipeline {
     let streamingStatus: StreamingStatus = StreamingStatus.RUNNING;
     const queue: { isDone: boolean; subword: string }[] = [];
     let resolvePromise: ResolveFunction | null;
+    let rejectPromise: (reason?: unknown) => void;
 
     // Callback function that C++ will call when a chunk is ready
-    function chunkOutput(isDone: boolean, subword: string) {
-      if (resolvePromise) {
+    function chunkOutput(error: undefined | Error, isDone: boolean, subword: string) {
+      if (error) {
+        if (rejectPromise) {
+          rejectPromise(error);
+        } else {
+          throw error;
+        }
+      } else if (resolvePromise) {
         // Fulfill pending request
         resolvePromise({ value: subword, done: isDone });
         resolvePromise = null; // Reset promise resolver
@@ -225,7 +232,10 @@ export class VLMPipeline {
           return { value: subword, done: isDone };
         }
 
-        return new Promise((resolve: ResolveFunction) => (resolvePromise = resolve));
+        return new Promise((resolve: ResolveFunction, reject: (reason?: unknown) => void) => {
+          resolvePromise = resolve;
+          rejectPromise = reject;
+        });
       },
       async return() {
         streamingStatus = StreamingStatus.CANCEL;
@@ -254,23 +264,34 @@ export class VLMPipeline {
       options["disableStreamer"] = true;
     }
 
-    return new Promise((resolve: (value: VLMDecodedResults) => void) => {
-      const chunkOutput = (isDone: boolean, result: string | any) => {
-        if (isDone) {
-          const decodedResults = new VLMDecodedResults(
-            result.texts,
-            result.scores,
-            result.perfMetrics,
-          );
-          resolve(decodedResults);
-        } else if (callback && typeof result === "string") {
-          return callback(result);
-        }
+    return new Promise(
+      (resolve: (value: VLMDecodedResults) => void, reject: (reason?: unknown) => void) => {
+        const chunkOutput = (error: undefined | Error, isDone: boolean, result: string | any) => {
+          if (error) {
+            reject(error);
+          } else if (isDone) {
+            const decodedResults = new VLMDecodedResults(
+              result.texts,
+              result.scores,
+              result.perfMetrics,
+            );
+            resolve(decodedResults);
+          } else if (callback) {
+            try {
+              return callback(result);
+            } catch (err) {
+              if (err instanceof Error && err.stack) {
+                err.message += `\n${err.stack}`;
+              }
+              throw err;
+            }
+          }
 
-        return StreamingStatus.RUNNING;
-      };
-      this.pipeline.generate(prompt, images, videos, chunkOutput, generationConfig, options);
-    });
+          return StreamingStatus.RUNNING;
+        };
+        this.pipeline.generate(prompt, images, videos, chunkOutput, generationConfig, options);
+      },
+    );
   }
 
   getTokenizer(): Tokenizer {

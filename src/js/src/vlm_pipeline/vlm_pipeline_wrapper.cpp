@@ -28,6 +28,24 @@ struct VLMTsfnContext {
 };
 
 void vlmPerformInferenceThread(VLMTsfnContext* context) {
+    auto report_error = [context](const std::string& message) {
+        auto status = context->tsfn.BlockingCall([message](Napi::Env env, Napi::Function jsCallback) {
+            try {
+                jsCallback.Call({
+                    Napi::Error::New(env, "vlmPerformInferenceThread error. " + message).Value(),
+                    env.Undefined(),
+                    env.Undefined()
+                });
+            } catch(std::exception& err) {
+                std::cerr << "The callback failed when attempting to return an error from vlmPerformInferenceThread. Details:\n" << err.what() << std::endl;
+                std::cerr << "Original error message:\n" << message << std::endl;
+            }
+        });
+        if (status != napi_ok) {
+            std::cerr << "The BlockingCall failed with status " << status << " when trying to return an error from vlmPerformInferenceThread." << std::endl;
+            std::cerr << "Original error message:\n" << message << std::endl;
+        }
+    };
     try {
         ov::genai::GenerationConfig config;
         config.update_generation_config(*context->generation_config);
@@ -35,20 +53,19 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
         auto disableStreamer = false;
         if (context->options->find("disableStreamer") != context->options->end()) {
             auto value = (*context->options)["disableStreamer"];
-            if (value.is<bool>()) {
-                disableStreamer = value.as<bool>();
-            } else {
-                OPENVINO_THROW("disableStreamer option should be boolean");
-            }
+            OPENVINO_ASSERT(value.is<bool>(), "disableStreamer option should be boolean");
+            disableStreamer = value.as<bool>();
         }
 
         ov::genai::StreamerVariant streamer = std::monostate();
+        std::vector<std::string> streamer_exceptions;
         if (!disableStreamer) {
-            streamer = [context](std::string word) {
+            streamer = [context, &streamer_exceptions](std::string word) {
                 std::promise<ov::genai::StreamingStatus> resultPromise;
-                napi_status status = context->tsfn.BlockingCall([word, &resultPromise](Napi::Env env, Napi::Function jsCallback) {
+                napi_status status = context->tsfn.BlockingCall([word, &resultPromise, &streamer_exceptions](Napi::Env env, Napi::Function jsCallback) {
                     try {
                         auto callback_result = jsCallback.Call({
+                            env.Undefined(),                // Error should be undefined in normal case
                             Napi::Boolean::New(env, false),
                             Napi::String::New(env, word)
                         });
@@ -58,11 +75,14 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
                             resultPromise.set_value(ov::genai::StreamingStatus::RUNNING);
                         }
                     } catch(std::exception& err) {
-                        Napi::Error::Fatal("vlmPerformInferenceThread callback error. Details:" , err.what());
+                        streamer_exceptions.push_back(err.what());
+                        resultPromise.set_value(ov::genai::StreamingStatus::CANCEL);
                     }
                 });
+
                 if (status != napi_ok) {
-                    Napi::Error::Fatal("vlmPerformInferenceThread error", "napi_status != napi_ok");
+                    streamer_exceptions.push_back("The streamer callback BlockingCall failed with the status: " + status);
+                    return ov::genai::StreamingStatus::CANCEL;
                 }
 
                 return resultPromise.get_future().get();
@@ -73,19 +93,35 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
         
         result = context->pipe->generate(context->prompt, context->images, context->videos, config, streamer);
 
-        napi_status status = context->tsfn.BlockingCall([result](Napi::Env env, Napi::Function jsCallback) {
-            jsCallback.Call({Napi::Boolean::New(env, true), to_vlm_decoded_result(env, result)});
-        });
+        if (!streamer_exceptions.empty()) {
+            // If there were exceptions from the streamer, report them all as a single error and finish without result
+            std::string combined_error = "Streamer exceptions occurred:\n";
+            for (size_t i = 0; i < streamer_exceptions.size(); ++i) {
+                combined_error += "[" + std::to_string(i + 1) + "] " + streamer_exceptions[i] + "\n";
+            }
+            report_error(combined_error);
+        } else {
+            // If no exceptions from streamer, call the final callback with the result
+            napi_status status = context->tsfn.BlockingCall([result, &report_error](Napi::Env env, Napi::Function jsCallback) {
+                try {
+                    jsCallback.Call({
+                        env.Undefined(),                    // Error should be undefined in normal case
+                        Napi::Boolean::New(env, true),
+                        to_vlm_decoded_result(env, result)
+                    });
+                } catch(std::exception& err) {
+                    report_error("The final callback failed. Details:\n" + std::string(err.what()));
+                }
+            });
 
-        if (status != napi_ok) {
-            Napi::Error::Fatal("vlmPerformInferenceThread error", "napi_status != napi_ok");
+            if (status != napi_ok) {
+                report_error("The final BlockingCall failed with status " + status);
+            }
         }
-
         context->tsfn.Release();
     }
     catch(std::exception& e) {
-        Napi::Error::Fatal("vlmPerformInferenceThread error" , e.what());
-
+        report_error(e.what());
         context->tsfn.Release();
     }
 }
