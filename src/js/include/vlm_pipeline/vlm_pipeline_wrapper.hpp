@@ -3,8 +3,10 @@
 
 #pragma once
 
-#include <thread>
 #include <napi.h>
+
+#include <thread>
+
 #include "openvino/genai/visual_language/pipeline.hpp"
 
 class VLMPipelineWrapper : public Napi::ObjectWrap<VLMPipelineWrapper> {

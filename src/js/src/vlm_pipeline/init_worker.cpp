@@ -3,14 +3,18 @@
 
 #include "include/vlm_pipeline/init_worker.hpp"
 
-VLMInitWorker::VLMInitWorker(
-    Function& callback,
-    std::shared_ptr<ov::genai::VLMPipeline>& pipe,
-    std::shared_ptr<bool> is_initializing,
-    const std::string model_path,
-    const std::string device,
-    const ov::AnyMap properties
-) : AsyncWorker(callback), pipe(pipe), is_initializing(is_initializing), model_path(model_path), device(device), properties(properties) {};
+VLMInitWorker::VLMInitWorker(Function& callback,
+                             std::shared_ptr<ov::genai::VLMPipeline>& pipe,
+                             std::shared_ptr<bool> is_initializing,
+                             const std::string model_path,
+                             const std::string device,
+                             const ov::AnyMap properties)
+    : AsyncWorker(callback),
+      pipe(pipe),
+      is_initializing(is_initializing),
+      model_path(model_path),
+      device(device),
+      properties(properties) {};
 
 void VLMInitWorker::Execute() {
     *this->is_initializing = true;
@@ -18,11 +22,11 @@ void VLMInitWorker::Execute() {
 };
 
 void VLMInitWorker::OnOK() {
-    Callback().Call({ Env().Null() });
+    Callback().Call({Env().Null()});
     *this->is_initializing = false;
 };
 
 void VLMInitWorker::OnError(const Error& e) {
-    Callback().Call({ Napi::Error::New(Env(), e.Message()).Value() });
+    Callback().Call({Napi::Error::New(Env(), e.Message()).Value()});
     *this->is_initializing = false;
 };

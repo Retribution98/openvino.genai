@@ -5,9 +5,8 @@
 
 #include <napi.h>
 
-#include "openvino/genai/visual_language/perf_metrics.hpp"
-
 #include "include/base/perf_metrics.hpp"
+#include "openvino/genai/visual_language/perf_metrics.hpp"
 
 class VLMPerfMetricsWrapper : public BasePerfMetricsWrapper<VLMPerfMetricsWrapper, ov::genai::VLMPerfMetrics> {
 public:

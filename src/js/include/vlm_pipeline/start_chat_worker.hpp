@@ -4,6 +4,7 @@
 #pragma once
 
 #include <napi.h>
+
 #include "openvino/genai/visual_language/pipeline.hpp"
 
 using namespace Napi;
