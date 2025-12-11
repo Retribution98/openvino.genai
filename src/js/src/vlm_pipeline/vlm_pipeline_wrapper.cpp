@@ -33,8 +33,7 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
         auto status = context->tsfn.BlockingCall([message](Napi::Env env, Napi::Function jsCallback) {
             try {
                 jsCallback.Call({Napi::Error::New(env, "vlmPerformInferenceThread error. " + message).Value(),
-                                 env.Undefined(),
-                                 env.Undefined()});
+                                 env.Null()});
             } catch (std::exception& err) {
                 std::cerr << "The callback failed when attempting to return an error from vlmPerformInferenceThread. "
                              "Details:\n"
@@ -68,9 +67,10 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
                     [word, &resultPromise, &streamer_exceptions](Napi::Env env, Napi::Function jsCallback) {
                         try {
                             auto callback_result =
-                                jsCallback.Call({env.Undefined(),  // Error should be undefined in normal case
-                                                 Napi::Boolean::New(env, false),
-                                                 Napi::String::New(env, word)});
+                                jsCallback.Call({
+                                    env.Null(),                     // Error should be null in normal case
+                                    Napi::String::New(env, word)    // Return string while streaming
+                                });
                             if (callback_result.IsNumber()) {
                                 resultPromise.set_value(static_cast<ov::genai::StreamingStatus>(
                                     callback_result.As<Napi::Number>().Int32Value()));
@@ -109,9 +109,10 @@ void vlmPerformInferenceThread(VLMTsfnContext* context) {
             napi_status status =
                 context->tsfn.BlockingCall([result, &report_error](Napi::Env env, Napi::Function jsCallback) {
                     try {
-                        jsCallback.Call({env.Undefined(),  // Error should be undefined in normal case
-                                         Napi::Boolean::New(env, true),
-                                         to_vlm_decoded_result(env, result)});
+                        jsCallback.Call({
+                            env.Null(),                         // Error should be null in normal case
+                            to_vlm_decoded_result(env, result)  // Return DecodedResults as the final result
+                        });
                     } catch (std::exception& err) {
                         report_error("The final callback failed. Details:\n" + std::string(err.what()));
                     }

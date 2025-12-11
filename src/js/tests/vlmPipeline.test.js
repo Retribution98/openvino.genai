@@ -27,16 +27,12 @@ describe("VLMPipeline", () => {
   });
 
   it("should generate text without images", async () => {
-    if (!pipeline) return;
-
     const result = await pipeline.generate("What is 2+2?");
 
     assert.ok(result.texts.length > 0, "Should generate some output");
   });
 
   it("should generate text with images", async () => {
-    if (!pipeline) return;
-
     const testImage1 = createTestImageTensor();
     const testImage2 = createTestImageTensor();
     const result = await pipeline.generate("Compare these two images.", [testImage1, testImage2]);
@@ -45,8 +41,6 @@ describe("VLMPipeline", () => {
   });
 
   it("should generate text with video input", async () => {
-    if (!pipeline) return;
-
     const testVideo = createTestVideoTensor();
 
     const result = await pipeline.generate(
@@ -63,8 +57,6 @@ describe("VLMPipeline", () => {
   });
 
   it("should generate with both image and video", async () => {
-    if (!pipeline) return;
-
     const testImage = createTestImageTensor();
     const testVideo = createTestVideoTensor();
 
@@ -79,8 +71,6 @@ describe("VLMPipeline", () => {
   });
 
   it("throw error on invalid callback", async () => {
-    if (!pipeline) return;
-
     await assert.rejects(
       pipeline.generate("What is 2+2?", [], [], {}, () => {
         throw new Error("Test error");
@@ -90,8 +80,6 @@ describe("VLMPipeline", () => {
   });
 
   it("throw error with invalid generationConfig", async () => {
-    if (!pipeline) return;
-
     await assert.rejects(
       pipeline.generate("What is 2+2?", [], [], { max_new_tokens: "five" }),
       /vlmPerformInferenceThread error/,
@@ -99,8 +87,6 @@ describe("VLMPipeline", () => {
   });
 
   it("should support streaming generation", async () => {
-    if (!pipeline) return;
-
     const testImage = createTestImageTensor();
     const chunks = [];
 
@@ -119,8 +105,6 @@ describe("VLMPipeline", () => {
   });
 
   it("should return VLMDecodedResults with perfMetrics", async () => {
-    if (!pipeline) return;
-
     const testImage = createTestImageTensor();
     const result = await pipeline.generate("Describe the image.", [testImage], [], {
       max_new_tokens: 10,
@@ -148,18 +132,17 @@ describe("VLMPipeline", () => {
   });
 
   it("should get tokenizer from pipeline", () => {
-    if (!pipeline) return;
     const tokenizer = pipeline.getTokenizer();
     assert.ok(tokenizer instanceof Tokenizer, "Should return tokenizer");
   });
 
   it("should start and finish chat", async () => {
-    if (!pipeline) return;
-
-    await pipeline.startChat("You are a helpful assistant.");
-    assert.ok(pipeline.isChatStarted, "Chat should be started");
+    await pipeline.startChat("You are an assistant named Tom.");
+    const result1 = await pipeline.generate("What is your name?");
+    assert.ok(/Tom/.test(result1.toString()));
 
     await pipeline.finishChat();
-    assert.ok(!pipeline.isChatStarted, "Chat should be finished");
+    const result2 = await pipeline.generate("What is your name?");
+    assert.ok(!/Tom/.test(result2.toString()));
   });
 });

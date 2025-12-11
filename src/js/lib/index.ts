@@ -62,8 +62,8 @@ class PipelineFactory {
 }
 
 export const { LLMPipeline, VLMPipeline, TextEmbeddingPipeline } = PipelineFactory;
-export { DecodedResults } from "./pipelines/llmPipeline.js";
-export { VLMDecodedResults } from "./pipelines/vlmPipeline.js";
+export { DecodedResults, VLMDecodedResults } from "./decodedResults.js";
+export { PerfMetrics, VLMPerfMetrics } from "./perfMetrics.js";
 export * from "./utils.js";
 export * from "./addon.js";
 export type { TokenizedInputs, EncodeOptions, DecodeOptions } from "./tokenizer.js";
