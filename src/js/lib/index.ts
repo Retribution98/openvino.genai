@@ -30,12 +30,12 @@ class PipelineFactory {
     return pipeline;
   }
 
-  static async VLMPipeline(modelPath: string, device?: string): Promise<any>;
+  static async VLMPipeline(modelPath: string, device?: string): Promise<VLM>;
   static async VLMPipeline(
     modelPath: string,
     device: string,
     properties?: VLMPipelineProperties,
-  ): Promise<any>;
+  ): Promise<VLM>;
   static async VLMPipeline(
     modelPath: string,
     device?: string,

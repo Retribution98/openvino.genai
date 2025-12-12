@@ -35,7 +35,9 @@ describe("VLMPipeline", () => {
   it("should generate text with images", async () => {
     const testImage1 = createTestImageTensor();
     const testImage2 = createTestImageTensor();
-    const result = await pipeline.generate("Compare these two images.", [testImage1, testImage2]);
+    const result = await pipeline.generate("Compare these two images.", {
+      images: [testImage1, testImage2],
+    });
 
     assert.strictEqual(result.texts.length, 1, "Should generate comparison");
   });
@@ -43,15 +45,14 @@ describe("VLMPipeline", () => {
   it("should generate text with video input", async () => {
     const testVideo = createTestVideoTensor();
 
-    const result = await pipeline.generate(
-      "Describe what happens in this video.",
-      [],
-      [testVideo],
-      {
+    const result = await pipeline.generate("Describe what happens in this video.", {
+      images: [],
+      videos: [testVideo],
+      generationConfig: {
         max_new_tokens: 20,
         temperature: 0,
       },
-    );
+    });
 
     assert.strictEqual(result.texts.length, 1);
   });
@@ -60,20 +61,21 @@ describe("VLMPipeline", () => {
     const testImage = createTestImageTensor();
     const testVideo = createTestVideoTensor();
 
-    const result = await pipeline.generate(
-      "Compare the image and video.",
-      [testImage],
-      [testVideo],
-      { max_new_tokens: 20, temperature: 0 },
-    );
+    const result = await pipeline.generate("Compare the image and video.", {
+      images: [testImage],
+      videos: [testVideo],
+      generationConfig: { max_new_tokens: 20, temperature: 0 },
+    });
 
     assert.strictEqual(result.texts.length, 1);
   });
 
-  it("throw error on invalid callback", async () => {
+  it("throw error on invalid streamer", async () => {
     await assert.rejects(
-      pipeline.generate("What is 2+2?", [], [], {}, () => {
-        throw new Error("Test error");
+      pipeline.generate("What is 2+2?", {
+        streamer: () => {
+          throw new Error("Test error");
+        },
       }),
       /Test error/,
     );
@@ -81,7 +83,9 @@ describe("VLMPipeline", () => {
 
   it("throw error with invalid generationConfig", async () => {
     await assert.rejects(
-      pipeline.generate("What is 2+2?", [], [], { max_new_tokens: "five" }),
+      pipeline.generate("What is 2+2?", {
+        generationConfig: { max_new_tokens: "five" },
+      }),
       /vlmPerformInferenceThread error/,
     );
   });
@@ -90,9 +94,12 @@ describe("VLMPipeline", () => {
     const testImage = createTestImageTensor();
     const chunks = [];
 
-    const stream = pipeline.stream("What do you see?", [testImage], [], {
-      max_new_tokens: 15,
-      temperature: 0,
+    const stream = pipeline.stream("What do you see?", {
+      images: [testImage],
+      generationConfig: {
+        max_new_tokens: 15,
+        temperature: 0,
+      },
     });
 
     for await (const chunk of stream) {
@@ -106,9 +113,12 @@ describe("VLMPipeline", () => {
 
   it("should return VLMDecodedResults with perfMetrics", async () => {
     const testImage = createTestImageTensor();
-    const result = await pipeline.generate("Describe the image.", [testImage], [], {
-      max_new_tokens: 10,
-      temperature: 0,
+    const result = await pipeline.generate("Describe the image.", {
+      images: [testImage],
+      generationConfig: {
+        max_new_tokens: 10,
+        temperature: 0,
+      },
     });
 
     assert.ok(result, "Should return result");

@@ -26,4 +26,5 @@ public:
 private:
     std::shared_ptr<ov::genai::VLMPipeline> pipe = nullptr;
     std::shared_ptr<bool> is_initializing = std::make_shared<bool>(false);
+    std::shared_ptr<bool> is_generating = std::make_shared<bool>(false);
 };

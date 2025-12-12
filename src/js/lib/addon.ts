@@ -5,7 +5,7 @@ import { Tensor } from "openvino-node";
 import type { ChatHistory as IChatHistory } from "./chatHistory.js";
 import type { Tokenizer as ITokenizer } from "./tokenizer.js";
 import { addon as ovAddon } from "openvino-node";
-import { GenerationConfig, VLMPipelineProperties } from "./utils.js";
+import { GenerationConfig, StreamingStatus, VLMPipelineProperties } from "./utils.js";
 import { VLMPerfMetrics } from "./perfMetrics.js";
 
 export type EmbeddingResult = Float32Array | Int8Array | Uint8Array;
@@ -70,15 +70,15 @@ export interface VLMPipeline {
     callback: (err: Error | null) => void,
   ): void;
   generate(
+    callback: (
+      err: Error | null,
+      result: { texts: string[]; scores: number[]; perfMetrics: VLMPerfMetrics },
+    ) => void,
     prompt: string,
     images: Tensor[],
     videos: Tensor[],
-    callback: (
-      err: Error | null,
-      result: string | { texts: string[]; scores: number[]; perfMetrics: VLMPerfMetrics },
-    ) => void,
+    streamer?: (chunk: string) => StreamingStatus,
     generationConfig?: GenerationConfig,
-    options?: Record<string, unknown>,
   ): void;
   startChat(systemMessage: string, callback: (err: Error | null) => void): void;
   finishChat(callback: (err: Error | null) => void): void;

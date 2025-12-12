@@ -356,8 +356,4 @@ export type LLMPipelineProperties = {
 
 export type VLMPipelineProperties = {
   schedulerConfig?: SchedulerConfig;
-};
-
-export type ResolveFunction = (arg: { value: string; done: boolean }) => void;
-
-export type RejectFunction = (reason?: unknown) => void;
+} & Record<string, unknown>;
