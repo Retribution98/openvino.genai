@@ -33,8 +33,10 @@ Napi::Value TextRerankPipelineWrapper::init(const Napi::CallbackInfo& info) {
         auto properties = js_to_cpp<ov::AnyMap>(env, info[3]);
         OPENVINO_ASSERT(info[4].IsFunction(), "init callback is not a function");
         Napi::Function callback = info[4].As<Napi::Function>();
+        Napi::Object self = info.This().As<Napi::Object>();
 
         auto async_worker = new RerankInitWorker(callback,
+                                                 self,
                                                  this->pipe,
                                                  this->is_initializing,
                                                  std::move(model_path),
@@ -62,9 +64,10 @@ Napi::Value TextRerankPipelineWrapper::rerank(const Napi::CallbackInfo& info) {
         auto documents = js_to_cpp<std::vector<std::string>>(env, info[1]);
         OPENVINO_ASSERT(info[2].IsFunction(), "rerank callback is not a function");
         auto callback = info[2].As<Napi::Function>();
+        Napi::Object self = info.This().As<Napi::Object>();
 
         auto async_worker =
-            new RerankWorker(callback, this->pipe, this->is_reranking, std::move(query), std::move(documents));
+            new RerankWorker(callback, self, this->pipe, this->is_reranking, std::move(query), std::move(documents));
         async_worker->Queue();
     } catch (const std::exception& ex) {
         *this->is_reranking = false;

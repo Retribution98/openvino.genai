@@ -10,6 +10,7 @@
 class RerankInitWorker : public Napi::AsyncWorker {
 public:
     RerankInitWorker(Napi::Function& callback,
+                     Napi::Object& pipeline_ref,
                      std::shared_ptr<ov::genai::TextRerankPipeline>& pipe,
                      std::shared_ptr<bool> is_initializing,
                      std::string&& model_path,

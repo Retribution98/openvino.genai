@@ -6,13 +6,14 @@
 #include "include/helper.hpp"
 
 RerankInitWorker::RerankInitWorker(Napi::Function& callback,
+                                   Napi::Object& pipeline_ref,
                                    std::shared_ptr<ov::genai::TextRerankPipeline>& pipe,
                                    std::shared_ptr<bool> is_initializing,
                                    std::string&& model_path,
                                    std::string&& device,
                                    ov::AnyMap&& config,
                                    ov::AnyMap&& properties)
-    : Napi::AsyncWorker(callback),
+    : Napi::AsyncWorker(pipeline_ref, callback, "RerankInitWorker", pipeline_ref),
       pipe(pipe),
       is_initializing(is_initializing),
       model_path(std::move(model_path)),

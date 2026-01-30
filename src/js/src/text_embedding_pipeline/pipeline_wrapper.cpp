@@ -1,23 +1,23 @@
-#include "include/helper.hpp"
 #include "include/text_embedding_pipeline/pipeline_wrapper.hpp"
-#include "include/text_embedding_pipeline/init_worker.hpp"
-#include "include/text_embedding_pipeline/embed_query_worker.hpp"
-#include "include/text_embedding_pipeline/embed_documents_worker.hpp"
 
-TextEmbeddingPipelineWrapper::TextEmbeddingPipelineWrapper(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TextEmbeddingPipelineWrapper>(info) {};
+#include "include/helper.hpp"
+#include "include/text_embedding_pipeline/embed_documents_worker.hpp"
+#include "include/text_embedding_pipeline/embed_query_worker.hpp"
+#include "include/text_embedding_pipeline/init_worker.hpp"
+
+TextEmbeddingPipelineWrapper::TextEmbeddingPipelineWrapper(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<TextEmbeddingPipelineWrapper>(info) {};
 
 Napi::Function TextEmbeddingPipelineWrapper::get_class(Napi::Env env) {
-    return DefineClass(
-        env,
-        "TextEmbeddingPipeline",
-        {
-            InstanceMethod("init", &TextEmbeddingPipelineWrapper::init),
-            InstanceMethod("embedQuerySync", &TextEmbeddingPipelineWrapper::embed_query),
-            InstanceMethod("embedDocumentsSync", &TextEmbeddingPipelineWrapper::embed_documents),
-            InstanceMethod("embedQuery", &TextEmbeddingPipelineWrapper::embed_query_async),
-            InstanceMethod("embedDocuments", &TextEmbeddingPipelineWrapper::embed_documents_async),
-        }
-    );
+    return DefineClass(env,
+                       "TextEmbeddingPipeline",
+                       {
+                           InstanceMethod("init", &TextEmbeddingPipelineWrapper::init),
+                           InstanceMethod("embedQuerySync", &TextEmbeddingPipelineWrapper::embed_query),
+                           InstanceMethod("embedDocumentsSync", &TextEmbeddingPipelineWrapper::embed_documents),
+                           InstanceMethod("embedQuery", &TextEmbeddingPipelineWrapper::embed_query_async),
+                           InstanceMethod("embedDocuments", &TextEmbeddingPipelineWrapper::embed_documents_async),
+                       });
 }
 
 Napi::Value TextEmbeddingPipelineWrapper::init(const Napi::CallbackInfo& info) {
@@ -27,8 +27,10 @@ Napi::Value TextEmbeddingPipelineWrapper::init(const Napi::CallbackInfo& info) {
     const Napi::Object config = info[2].As<Napi::Object>();
     const Napi::Object properties = info[3].As<Napi::Object>();
     Napi::Function callback = info[4].As<Napi::Function>();
+    Napi::Object self = info.This().As<Napi::Object>();
 
-    EmbeddingInitWorker* asyncWorker = new EmbeddingInitWorker(callback, this->pipe, model_path, device, config, properties);
+    EmbeddingInitWorker* asyncWorker =
+        new EmbeddingInitWorker(callback, self, this->pipe, model_path, device, config, properties);
     asyncWorker->Queue();
 
     return info.Env().Undefined();
@@ -55,8 +57,9 @@ Napi::Value TextEmbeddingPipelineWrapper::embed_query_async(const Napi::Callback
     Napi::Env env = info.Env();
     Napi::String text = info[0].As<Napi::String>();
     Napi::Function callback = info[1].As<Napi::Function>();
+    Napi::Object self = info.This().As<Napi::Object>();
 
-    auto asyncWorker = new EmbedQueryWorker(callback, this->pipe, text);
+    auto asyncWorker = new EmbedQueryWorker(callback, self, this->pipe, text);
     asyncWorker->Queue();
 
     return info.Env().Undefined();
@@ -66,8 +69,9 @@ Napi::Value TextEmbeddingPipelineWrapper::embed_documents_async(const Napi::Call
     Napi::Env env = info.Env();
     Napi::Array document = info[0].As<Napi::Array>();
     Napi::Function callback = info[1].As<Napi::Function>();
+    Napi::Object self = info.This().As<Napi::Object>();
 
-    auto asyncWorker = new EmbedDocumentsWorker(callback, this->pipe, document);
+    auto asyncWorker = new EmbedDocumentsWorker(callback, self, this->pipe, document);
     asyncWorker->Queue();
 
     return info.Env().Undefined();

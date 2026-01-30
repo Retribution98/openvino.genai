@@ -6,11 +6,12 @@
 #include "include/helper.hpp"
 
 RerankWorker::RerankWorker(Napi::Function& callback,
+                           Napi::Object& pipeline_ref,
                            std::shared_ptr<ov::genai::TextRerankPipeline> pipe,
                            std::shared_ptr<bool> is_reranking,
                            std::string&& query,
                            std::vector<std::string>&& documents)
-    : Napi::AsyncWorker(callback),
+    : Napi::AsyncWorker(pipeline_ref, callback, "RerankWorker", pipeline_ref),
       pipe(pipe),
       is_reranking(is_reranking),
       query(std::move(query)),
