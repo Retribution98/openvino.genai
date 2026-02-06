@@ -352,3 +352,47 @@ export type LLMPipelineProperties = {
 export type VLMPipelineProperties = {
   schedulerConfig?: SchedulerConfig;
 } & Record<string, unknown>;
+
+/** Generation config for WhisperPipeline. Extends GenerationConfig with Whisper-specific options. */
+export type WhisperGenerationConfig = GenerationConfig & {
+  /** Language token for generation (e.g. "<|en|>"). For multilingual models only. */
+  language?: string;
+  /** Task: "translate" or "transcribe". For multilingual models only. */
+  task?: string;
+  /** If true, return timestamps for text segments. */
+  return_timestamps?: boolean;
+  /** If true, return word-level timestamps (requires word_timestamps in pipeline constructor). */
+  word_timestamps?: boolean;
+  /** Initial prompt to steer spelling or style. */
+  initial_prompt?: string;
+  /** Hotwords to steer spelling or style. */
+  hotwords?: string;
+  /** Encoder attention alignment heads for word-level timestamps. Each pair is [layer_index, head_index]. */
+  alignment_heads?: [number, number][];
+  /** Decoder start token id (e.g. startoftranscript). */
+  decoder_start_token_id?: number;
+  /** Padding token id. */
+  pad_token_id?: number;
+  /** No timestamps token id. */
+  no_timestamps_token_id?: number;
+  /** Transcribe task token id. */
+  transcribe_token_id?: number;
+  /** Translate task token id. */
+  translate_token_id?: number;
+  /** Start of previous segment token id. */
+  prev_sot_token_id?: number;
+  /** Language token to id map (from generation_config.json). */
+  lang_to_id?: Record<string, number>;
+  /** Max initial timestamp index. */
+  max_initial_timestamp_index?: number;
+  /** Whether the model is multilingual. */
+  is_multilingual?: boolean;
+  /** Token ids to suppress at the beginning. */
+  begin_suppress_tokens?: number[];
+  /** Token ids to suppress. */
+  suppress_tokens?: number[];
+};
+
+export type WhisperPipelineProperties = {
+  schedulerConfig?: SchedulerConfig;
+} & Record<string, unknown>;

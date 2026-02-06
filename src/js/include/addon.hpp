@@ -11,9 +11,11 @@ struct AddonData {
     Napi::FunctionReference core;
     Napi::FunctionReference vlm_pipeline;
     Napi::FunctionReference text_rerank_pipeline;
+    Napi::FunctionReference whisper_pipeline;
     Napi::FunctionReference tokenizer;
     Napi::FunctionReference perf_metrics;
     Napi::FunctionReference vlm_perf_metrics;
+    Napi::FunctionReference whisper_perf_metrics;
     Napi::FunctionReference chat_history;
     Napi::FunctionReference reasoning_parser;
     Napi::FunctionReference deepseek_r1_reasoning_parser;

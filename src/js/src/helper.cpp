@@ -8,6 +8,7 @@
 #include "include/parser.hpp"
 #include "include/perf_metrics.hpp"
 #include "include/vlm_pipeline/perf_metrics.hpp"
+#include "include/whisper_pipeline/perf_metrics.hpp"
 
 namespace {
 constexpr const char* JS_SCHEDULER_CONFIG_KEY = "schedulerConfig";
@@ -155,6 +156,31 @@ std::vector<int64_t> js_to_cpp<std::vector<int64_t>>(const Napi::Env& env, const
         vector.push_back(js_to_cpp<int64_t>(env, array[i]));
     }
     return vector;
+}
+
+template <>
+std::vector<float> js_to_cpp<std::vector<float>>(const Napi::Env& env, const Napi::Value& value) {
+    if (value.IsTypedArray()) {
+        Napi::TypedArrayOf<float> typed = value.As<Napi::TypedArrayOf<float>>();
+        size_t length = typed.ElementLength();
+        std::vector<float> vector(length);
+        for (size_t i = 0; i < length; ++i) {
+            vector[i] = typed[i];
+        }
+        return vector;
+    }
+    if (value.IsArray()) {
+        auto array = value.As<Napi::Array>();
+        size_t arrayLength = array.Length();
+        std::vector<float> vector;
+        vector.reserve(arrayLength);
+        for (uint32_t i = 0; i < arrayLength; ++i) {
+            Napi::Value elem = array.Get(i);
+            vector.push_back(static_cast<float>(elem.ToNumber().DoubleValue()));
+        }
+        return vector;
+    }
+    OPENVINO_THROW("Passed argument must be of type Array or Float32Array (e.g. raw speech).");
 }
 
 template <>
@@ -699,5 +725,42 @@ Napi::Object to_vlm_decoded_result(const Napi::Env& env, const ov::genai::VLMDec
     obj.Set("scores", cpp_to_js<std::vector<float>, Napi::Value>(env, results.scores));
     obj.Set("perfMetrics", VLMPerfMetricsWrapper::wrap(env, results.perf_metrics));
     obj.Set("parsed", cpp_to_js<std::vector<ov::genai::JsonContainer>, Napi::Value>(env, results.parsed));
+    return obj;
+}
+
+Napi::Object to_whisper_decoded_result(const Napi::Env& env, const ov::genai::WhisperDecodedResults& results) {
+    Napi::Object obj = Napi::Object::New(env);
+    obj.Set("texts", cpp_to_js<std::vector<std::string>, Napi::Value>(env, results.texts));
+    obj.Set("scores", cpp_to_js<std::vector<float>, Napi::Value>(env, results.scores));
+    obj.Set("perfMetrics", WhisperPerfMetricsWrapper::wrap(env, results.perf_metrics));
+    if (results.chunks.has_value()) {
+        Napi::Array chunks = Napi::Array::New(env, results.chunks->size());
+        for (size_t i = 0; i < results.chunks->size(); ++i) {
+            const auto& c = results.chunks->at(i);
+            Napi::Object chunk = Napi::Object::New(env);
+            chunk.Set("text", Napi::String::New(env, c.text));
+            chunk.Set("startTs", Napi::Number::New(env, c.start_ts));
+            chunk.Set("endTs", Napi::Number::New(env, c.end_ts));
+            chunks[i] = chunk;
+        }
+        obj.Set("chunks", chunks);
+    }
+    if (results.words.has_value()) {
+        Napi::Array words = Napi::Array::New(env, results.words->size());
+        for (size_t i = 0; i < results.words->size(); ++i) {
+            const auto& w = results.words->at(i);
+            Napi::Object wordObj = Napi::Object::New(env);
+            wordObj.Set("word", Napi::String::New(env, w.word));
+            wordObj.Set("startTs", Napi::Number::New(env, w.start_ts));
+            wordObj.Set("endTs", Napi::Number::New(env, w.end_ts));
+            Napi::Array tokenIds = Napi::Array::New(env, w.token_ids.size());
+            for (size_t j = 0; j < w.token_ids.size(); ++j) {
+                tokenIds[j] = Napi::Number::New(env, static_cast<double>(w.token_ids[j]));
+            }
+            wordObj.Set("tokenIds", tokenIds);
+            words[i] = wordObj;
+        }
+        obj.Set("words", words);
+    }
     return obj;
 }

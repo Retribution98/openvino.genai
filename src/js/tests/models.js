@@ -7,4 +7,5 @@ export const models = {
   Embedding: "OpenVINO/bge-base-en-v1.5-fp16-ov",
   TestReranking: "OpenVINO/Qwen3-Reranker-0.6B-fp16-ov",
   VLM: "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
+  WHISPER: "OpenVINO/whisper-tiny-int8",
 };

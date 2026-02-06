@@ -9,6 +9,7 @@
 #include "openvino/genai/rag/text_embedding_pipeline.hpp"
 #include "openvino/genai/rag/text_rerank_pipeline.hpp"
 #include "openvino/genai/visual_language/pipeline.hpp"
+#include "openvino/genai/whisper_pipeline.hpp"
 #include "openvino/openvino.hpp"
 
 template<class... Ts> struct overloaded : Ts... {using Ts::operator()...;};
@@ -49,6 +50,9 @@ template <>
 std::vector<std::string> js_to_cpp<std::vector<std::string>>(const Napi::Env& env, const Napi::Value& value);
 template <>
 std::vector<int64_t> js_to_cpp<std::vector<int64_t>>(const Napi::Env& env, const Napi::Value& value);
+/** @brief  A template specialization for TargetType std::vector<float> (e.g. raw speech) */
+template <>
+std::vector<float> js_to_cpp<std::vector<float>>(const Napi::Env& env, const Napi::Value& value);
 /** @brief  A template specialization for TargetType GenerateInputs */
 template <>
 GenerateInputs js_to_cpp<GenerateInputs>(const Napi::Env& env, const Napi::Value& value);
@@ -178,3 +182,5 @@ Napi::Function get_prototype_from_ov_addon(const Napi::Env& env, const std::stri
 Napi::Object to_decoded_result(const Napi::Env& env, const ov::genai::DecodedResults& results);
 
 Napi::Object to_vlm_decoded_result(const Napi::Env& env, const ov::genai::VLMDecodedResults& results);
+
+Napi::Object to_whisper_decoded_result(const Napi::Env& env, const ov::genai::WhisperDecodedResults& results);
